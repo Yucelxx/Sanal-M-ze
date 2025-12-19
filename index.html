@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>Sanal Müze Rehberi</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <style>
+    :root{
+      --bg:#0b1220; --card:#121a2b; --muted:#94a3b8; --text:#e5e7eb;
+      --accent:#22c55e; --accent2:#60a5fa; --border:rgba(255,255,255,.08);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:linear-gradient(180deg,#0b1220,#070b14);
+      color:var(--text);
+      padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom) 14px;
+    }
+    header{display:flex; align-items:center; gap:10px; padding:10px 0 14px}
+    .logo{
+      width:40px; height:40px; border-radius:12px;
+      background:linear-gradient(135deg,var(--accent2),var(--accent));
+      display:grid; place-items:center; font-weight:800; color:#06111f;
+    }
+    h1{font-size:18px; margin:0}
+    .sub{color:var(--muted); font-size:12px; margin-top:2px}
+    .tabs{display:flex; gap:8px; margin:8px 0 12px}
+    .tab{
+      border:1px solid var(--border); background:rgba(255,255,255,.03);
+      color:var(--text); padding:10px 12px; border-radius:12px;
+      font-size:13px; cursor:pointer; user-select:none; flex:1; text-align:center;
+    }
+    .tab.active{outline:2px solid rgba(96,165,250,.35)}
+    .grid{display:grid; gap:10px}
+    .card{
+      border:1px solid var(--border); background:rgba(255,255,255,.03);
+      border-radius:16px; padding:12px;
+    }
+    .row{display:flex; justify-content:space-between; gap:10px; align-items:flex-start}
+    .title{font-weight:700}
+    .meta{color:var(--muted); font-size:12px; margin-top:4px}
+    .btns{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+    button{
+      border:1px solid var(--border); background:rgba(255,255,255,.04);
+      color:var(--text); padding:10px 12px; border-radius:12px;
+      font-size:13px; cursor:pointer;
+    }
+    button.primary{background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.35)}
+    .viewer{
+      position:fixed; inset:0; background:rgba(0,0,0,.6);
+      display:none; padding:env(safe-area-inset-top) 10px env(safe-area-inset-bottom) 10px;
+      z-index:50;
+    }
+    .viewer.open{display:block}
+    .viewerShell{height:100%; display:grid; grid-template-rows:auto 1fr auto; gap:10px;}
+    .viewerTop{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      padding:10px 12px; border:1px solid var(--border); border-radius:16px;
+      background:rgba(18,26,43,.92); backdrop-filter:blur(10px);
+    }
+    .viewerTop .small{color:var(--muted); font-size:12px}
+    .frameWrap{
+      position:relative; border:1px solid var(--border); border-radius:16px;
+      overflow:hidden; background:#000;
+    }
+    iframe{width:100%; height:100%; border:0; display:block}
+    .pin{
+      position:absolute; min-width:44px; height:44px; border-radius:14px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(18,26,43,.78); backdrop-filter:blur(10px);
+      color:var(--text); font-weight:800; cursor:pointer;
+      display:grid; place-items:center;
+    }
+    .pin:hover{outline:2px solid rgba(34,197,94,.25)}
+    .bottomBar{
+      display:flex; gap:8px;
+      padding:10px 12px; border:1px solid var(--border); border-radius:16px;
+      background:rgba(18,26,43,.92); backdrop-filter:blur(10px);
+      align-items:center; justify-content:space-between;
+    }
+    .hint{color:var(--muted); font-size:12px}
+    dialog{
+      border:1px solid var(--border); border-radius:16px;
+      background:rgba(18,26,43,.98); color:var(--text);
+      width:min(520px, calc(100% - 18px));
+    }
+    dialog::backdrop{background:rgba(0,0,0,.55)}
+    .dlgTitle{font-weight:800; margin:0 0 6px}
+    .dlgText{color:var(--text); opacity:.95; line-height:1.35; white-space:pre-wrap;}
+    .dlgClose{margin-top:10px; width:100%}
+    .search{
+      width:100%; padding:12px 12px; border-radius:14px;
+      border:1px solid var(--border); background:rgba(255,255,255,.03);
+      color:var(--text); outline:none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">SR</div>
+    <div>
+      <h1>Sanal Müze Rehberi</h1>
+      <div class="sub">Mekân seç → Sanal tur → Bilgi kutularıyla keşfet</div>
+    </div>
+  </header>
+
+  <input id="q" class="search" placeholder="Ara (mekân adı / şehir / tema)..." />
+
+  <div class="tabs">
+    <div class="tab active" data-tab="liste">Liste</div>
+    <div class="tab" data-tab="hakkinda">Hakkında</div>
+  </div>
+
+  <main id="liste" class="grid"></main>
+
+  <section id="hakkinda" class="card" style="display:none">
+    <div class="title">Nasıl kullanılır?</div>
+    <div class="meta" style="margin-top:6px; line-height:1.5">
+      1) Bir mekân seç.<br/>
+      2) “Sanal Turu Aç” ile gezmeye başla.<br/>
+      3) Ekrandaki numaralara dokun → kısa bilgi kutuları açılır.<br/>
+      4) Telefonda “Ana ekrana ekle” ile uygulama gibi kullan.
+    </div>
+  </section>
+
+  <!-- Viewer -->
+  <div id="viewer" class="viewer" aria-hidden="true">
+    <div class="viewerShell">
+      <div class="viewerTop">
+        <div>
+          <div id="vTitle" style="font-weight:800"></div>
+          <div id="vMeta" class="small"></div>
+        </div>
+        <button id="closeViewer">Kapat</button>
+      </div>
+
+      <div class="frameWrap" id="frameWrap">
+        <iframe id="tourFrame" allow="fullscreen"></iframe>
+        <!-- Pins injected -->
+      </div>
+
+      <div class="bottomBar">
+        <div class="hint">İpucu: Numara → Bilgi kutusu</div>
+        <button id="openInNew">Yeni sekmede aç</button>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="infoDlg">
+    <p class="dlgTitle" id="dlgTitle"></p>
+    <div class="dlgText" id="dlgText"></div>
+    <button class="dlgClose" id="dlgClose">Tamam</button>
+  </dialog>
+
+  <script>
+    const PLACES = [
+      {
+        id: "bursa-ulu-camii",
+        name: "Bursa Ulu Camii",
+        city: "Bursa",
+        theme: "Erken Osmanlı mimarisi",
+        tourUrl: "https://www.360tr.com/embed.php?vid=3fe0bc1a33",
+        pins: [
+          { label: "1", title: "Giriş ve ilk izlenim", text: "İç mekâna girince genişlik ve sütun düzenine odaklan. Mekânın ‘çok kubbeli’ yapısı nasıl bir his veriyor?", x: 10, y: 18 },
+          { label: "2", title: "Hat ve süsleme", text: "Duvarlardaki hat yazıları ve süsleme unsurları caminin anlatısını güçlendirir. Bir ayrıntı seçip neden dikkat çektiğini düşün.", x: 72, y: 28 },
+          { label: "3", title: "Işık-gölge", text: "Işığın iç mekânda yayılışına bak: Hangi bölgeler daha aydınlık? Bunun mekân algısına etkisi ne?", x: 56, y: 72 },
+          { label: "4", title: "Kısa görev", text: "Tek cümle: Bu mekân sana hangi duyguyu hissettirdi? (huzur/heybet/sakinlik vb.)", x: 18, y: 80 }
+        ],
+      },
+      {
+        id: "selimiye-camii",
+        name: "Selimiye Camii",
+        city: "Edirne",
+        theme: "Mimar Sinan",
+        tourUrl: "https://www.360tr.com/embed.php?vid=11b4096d1",
+        pins: [
+          { label: "1", title: "Geçiş alanı", text: "Camiye girişte geçiş alanını ve ritmi fark et: dışarıdan içeriye geçiş nasıl kurgulanmış?", x: 10, y: 20 },
+          { label: "2", title: "Mekân bütünlüğü", text: "Kubbe altındaki genişlik hissi ve simetri dikkat çeker. Gezinti sırasında ‘tek büyük mekân’ duygusunu gözlemle.", x: 72, y: 32 },
+          { label: "3", title: "Denge ve oran", text: "Sütunlar, kemerler ve kubbe ilişkisinde denge var mı? Gözün en çok nereye takılıyor?", x: 58, y: 74 },
+          { label: "4", title: "Kısa görev", text: "Bir kelime seç (simetri / denge / görkem) ve seçtiğini 1 cümleyle gerekçelendir.", x: 22, y: 82 }
+        ],
+      },
+      {
+        id: "suleymaniye-camii",
+        name: "Süleymaniye Camii",
+        city: "İstanbul",
+        theme: "Külliye ve şehir silueti",
+        tourUrl: "https://www.youtube.com/embed/ESYGqb4fQO4?rel=0&modestbranding=1",
+        pins: [
+          { label: "1", title: "Külliye fikri", text: "Süleymaniye yalnızca cami değil; çevresindeki yapılarla bir ‘külliye’ bütünüdür. Gezerken bu bütün fikrini aklında tut.", x: 10, y: 18 },
+          { label: "2", title: "Şehirle ilişki", text: "Konum ve manzara üzerinden düşün: Yapı İstanbul siluetine nasıl bir katkı yapıyor?", x: 72, y: 28 },
+          { label: "3", title: "Mimari vurgu", text: "Mekânın ritmini oluşturan tekrarları (kemer/kubbe düzeni gibi) fark etmeye çalış.", x: 55, y: 72 },
+          { label: "4", title: "Kısa görev", text: "2 cümle: ‘Bu yapı neden önemli?’ sorusuna kendi cümlelerinle cevap ver.", x: 18, y: 80 }
+        ],
+      },
+    ];
+
+    const $ = (s) => document.querySelector(s);
+    const listEl = $("#liste");
+    const qEl = $("#q");
+    const viewer = $("#viewer");
+    const frame = $("#tourFrame");
+    const wrap = $("#frameWrap");
+    const vTitle = $("#vTitle");
+    const vMeta = $("#vMeta");
+    const dlg = $("#infoDlg");
+    const dlgTitle = $("#dlgTitle");
+    const dlgText = $("#dlgText");
+    let currentPlace = null;
+
+    function renderList(filter=""){
+      listEl.innerHTML = "";
+      const f = filter.trim().toLowerCase();
+      const items = PLACES.filter(p => {
+        const hay = `${p.name} ${p.city} ${p.theme}`.toLowerCase();
+        return !f || hay.includes(f);
+      });
+
+      if(items.length === 0){
+        listEl.innerHTML = `<div class="card">Sonuç yok. Yazımı kontrol et.</div>`;
+        return;
+      }
+
+      items.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="row">
+            <div>
+              <div class="title">${p.name}</div>
+              <div class="meta">${p.city} • ${p.theme}</div>
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" data-open="${p.id}">Sanal Turu Aç</button>
+            <button data-preview="${p.id}">Bilgi Kutuları</button>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    function openViewer(placeId){
+      const p = PLACES.find(x => x.id === placeId);
+      if(!p) return;
+      currentPlace = p;
+
+      vTitle.textContent = p.name;
+      vMeta.textContent = `${p.city} • ${p.theme}`;
+      frame.src = p.tourUrl;
+
+      wrap.querySelectorAll(".pin").forEach(el => el.remove());
+
+      p.pins.forEach(pin => {
+        const b = document.createElement("button");
+        b.className = "pin";
+        b.textContent = pin.label;
+        b.style.left = pin.x + "%";
+        b.style.top  = pin.y + "%";
+        b.addEventListener("click", () => {
+          dlgTitle.textContent = pin.title;
+          dlgText.textContent = pin.text;
+          dlg.showModal();
+        });
+        wrap.appendChild(b);
+      });
+
+      viewer.classList.add("open");
+      viewer.setAttribute("aria-hidden","false");
+    }
+
+    function previewPins(placeId){
+      const p = PLACES.find(x => x.id === placeId);
+      if(!p) return;
+      const txt = p.pins.map(x => `${x.label}) ${x.title}: ${x.text}`).join("\n\n");
+      dlgTitle.textContent = p.name + " — Bilgi Kutuları";
+      dlgText.textContent = txt;
+      dlg.showModal();
+    }
+
+    document.addEventListener("click", (e) => {
+      const openId = e.target?.dataset?.open;
+      const prevId = e.target?.dataset?.preview;
+      if(openId) openViewer(openId);
+      if(prevId) previewPins(prevId);
+    });
+
+    $("#closeViewer").addEventListener("click", () => {
+      viewer.classList.remove("open");
+      viewer.setAttribute("aria-hidden","true");
+      frame.src = "about:blank";
+    });
+
+    $("#openInNew").addEventListener("click", () => {
+      if(currentPlace?.tourUrl) window.open(currentPlace.tourUrl, "_blank");
+    });
+
+    $("#dlgClose").addEventListener("click", () => dlg.close());
+    qEl.addEventListener("input", () => renderList(qEl.value));
+
+    document.querySelectorAll(".tab").forEach(t => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        const which = t.dataset.tab;
+        $("#liste").style.display = which === "liste" ? "grid" : "none";
+        $("#hakkinda").style.display = which === "hakkinda" ? "block" : "none";
+      });
+    });
+
+    renderList();
+
+    if("serviceWorker" in navigator){
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+    }
+  </script>
+</body>
+</html>

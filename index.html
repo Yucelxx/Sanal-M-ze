@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>Sanal Müze Rehberi</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <style>
+    :root{
+      --bg:#0b1220; --muted:#94a3b8; --text:#e5e7eb;
+      --accent:#22c55e; --accent2:#60a5fa; --border:rgba(255,255,255,.08);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:linear-gradient(180deg,#0b1220,#070b14);
+      color:var(--text);
+      padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom) 14px;
+    }
+    header{display:flex; align-items:center; gap:10px; padding:10px 0 14px}
+    .logo{
+      width:40px; height:40px; border-radius:12px;
+      background:linear-gradient(135deg,var(--accent2),var(--accent));
+      display:grid; place-items:center; font-weight:800; color:#06111f;
+    }
+    h1{font-size:18px; margin:0}
+    .sub{color:var(--muted); font-size:12px; margin-top:2px}
+    .tabs{display:flex; gap:8px; margin:8px 0 12px}
+    .tab{
+      border:1px solid var(--border); background:rgba(255,255,255,.03);
+      color:var(--text); padding:10px 12px; border-radius:12px;
+      font-size:13px; cursor:pointer; user-select:none; flex:1; text-align:center;
+    }
+    .tab.active{outline:2px solid rgba(96,165,250,.35)}
+    .grid{display:grid; gap:10px}
+    .card{
+      border:1px solid var(--border); background:rgba(255,255,255,.03);
+      border-radius:16px; padding:12px;
+    }
+    .row{display:flex; justify-content:space-between; gap:10px; align-items:flex-start}
+    .title{font-weight:700}
+    .meta{color:var(--muted); font-size:12px; margin-top:4px; line-height:1.45}
+    .btns{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+    button{
+      border:1px solid var(--border); background:rgba(255,255,255,.04);
+      color:var(--text); padding:10px 12px; border-radius:12px;
+      font-size:13px; cursor:pointer;
+    }
+    button.primary{background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.35)}
+    .viewer{
+      position:fixed; inset:0; background:rgba(0,0,0,.6);
+      display:none; padding:env(safe-area-inset-top) 10px env(safe-area-inset-bottom) 10px;
+      z-index:50;
+    }
+    .viewer.open{display:block}
+    .viewerShell{height:100%; display:grid; grid-template-rows:auto 1fr auto; gap:10px;}
+    .viewerTop{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      padding:10px 12px; border:1px solid var(--border); border-radius:16px;
+      background:rgba(18,26,43,.92); backdrop-filter:blur(10px);
+    }
+    .viewerTop .small{color:var(--muted); font-size:12px}
+    .frameWrap{
+      position:relative; border:1px solid var(--border); border-radius:16px;
+      overflow:hidden; background:#000;
+    }
+    iframe{width:100%; height:100%; border:0; display:block}
+    .bottomBar{
+      display:flex; gap:8px;
+      padding:10px 12px; border:1px solid var(--border); border-radius:16px;
+      background:rgba(18,26,43,.92); backdrop-filter:blur(10px);
+      align-items:center; justify-content:space-between;
+    }
+    .hint{color:var(--muted); font-size:12px}
+    .search{
+      width:100%; padding:12px 12px; border-radius:14px;
+      border:1px solid var(--border); background:rgba(255,255,255,.03);
+      color:var(--text); outline:none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">SR</div>
+    <div>
+      <h1>Sanal Müze Rehberi</h1>
+      <div class="sub">Mekân seç → Sanal turu aç → keşfet</div>
+    </div>
+  </header>
+
+  <input id="q" class="search" placeholder="Ara (mekân adı / şehir / tema)..." />
+
+  <div class="tabs">
+    <div class="tab active" data-tab="liste">Liste</div>
+    <div class="tab" data-tab="hakkinda">Hakkında</div>
+  </div>
+
+  <main id="liste" class="grid"></main>
+
+  <section id="hakkinda" class="card" style="display:none">
+    <div class="title">Nasıl kullanılır?</div>
+    <div class="meta" style="margin-top:6px">
+      1) Bir mekân seç.<br/>
+      2) “Sanal Turu Aç” ile gezmeye başla.<br/>
+      3) Telefonda “Ana ekrana ekle” ile uygulama gibi kullan.
+    </div>
+  </section>
+
+  <!-- Viewer -->
+  <div id="viewer" class="viewer" aria-hidden="true">
+    <div class="viewerShell">
+      <div class="viewerTop">
+        <div>
+          <div id="vTitle" style="font-weight:800"></div>
+          <div id="vMeta" class="small"></div>
+        </div>
+        <button id="closeViewer">Kapat</button>
+      </div>
+
+      <div class="frameWrap" id="frameWrap">
+        <iframe id="tourFrame" allow="fullscreen"></iframe>
+      </div>
+
+      <div class="bottomBar">
+        <div class="hint">İpucu: Tur açılmazsa “Yeni sekmede aç”ı deneyin.</div>
+        <button id="openInNew">Yeni sekmede aç</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PLACES = [
+      {
+        id: "bursa-ulu-camii",
+        name: "Bursa Ulu Camii",
+        city: "Bursa",
+        theme: "Erken Osmanlı mimarisi",
+        tourUrl: "https://www.360tr.com/embed.php?vid=3fe0bc1a33",
+        note: "Çok kubbeli yapı düzeni ve iç mekânın genişliğiyle dikkat çeker."
+      },
+      {
+        id: "selimiye-camii",
+        name: "Selimiye Camii",
+        city: "Edirne",
+        theme: "Mimar Sinan",
+        tourUrl: "https://www.360tr.com/embed.php?vid=11b4096d1",
+        note: "Simetri, oran ve mekân bütünlüğü üzerine gözlem yapın."
+      },
+      {
+        id: "suleymaniye-camii",
+        name: "Süleymaniye Camii",
+        city: "İstanbul",
+        theme: "Mimar Sinan • Külliye",
+        tourUrl: "https://www.airvuz.com/videoPlayerEmbed/65b7e182be5e570008f4d7d6?autoplay=false",
+        note: "Süleymaniye’yi 360° video turla keşfedin."
+      },
+    ];
+
+    const $ = (s) => document.querySelector(s);
+    const listEl = $("#liste");
+    const qEl = $("#q");
+    const viewer = $("#viewer");
+    const frame = $("#tourFrame");
+    const vTitle = $("#vTitle");
+    const vMeta = $("#vMeta");
+    let currentPlace = null;
+
+    function renderList(filter=""){
+      listEl.innerHTML = "";
+      const f = filter.trim().toLowerCase();
+      const items = PLACES.filter(p => {
+        const hay = `${p.name} ${p.city} ${p.theme} ${p.note}`.toLowerCase();
+        return !f || hay.includes(f);
+      });
+
+      if(items.length === 0){
+        listEl.innerHTML = `<div class="card">Sonuç yok. Yazımı kontrol et.</div>`;
+        return;
+      }
+
+      items.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="row">
+            <div>
+              <div class="title">${p.name}</div>
+              <div class="meta">${p.city} • ${p.theme}<br/>${p.note}</div>
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" data-open="${p.id}">Sanal Turu Aç</button>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    function openViewer(placeId){
+      const p = PLACES.find(x => x.id === placeId);
+      if(!p) return;
+      currentPlace = p;
+
+      vTitle.textContent = p.name;
+      vMeta.textContent = `${p.city} • ${p.theme}`;
+      frame.src = p.tourUrl;
+
+      viewer.classList.add("open");
+      viewer.setAttribute("aria-hidden","false");
+    }
+
+    document.addEventListener("click", (e) => {
+      const openId = e.target?.dataset?.open;
+      if(openId) openViewer(openId);
+    });
+
+    $("#closeViewer").addEventListener("click", () => {
+      viewer.classList.remove("open");
+      viewer.setAttribute("aria-hidden","true");
+      frame.src = "about:blank";
+    });
+
+    $("#openInNew").addEventListener("click", () => {
+      if(currentPlace?.tourUrl) window.open(currentPlace.tourUrl, "_blank");
+    });
+
+    qEl.addEventListener("input", () => renderList(qEl.value));
+
+    document.querySelectorAll(".tab").forEach(t => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        const which = t.dataset.tab;
+        $("#liste").style.display = which === "liste" ? "grid" : "none";
+        $("#hakkinda").style.display = which === "hakkinda" ? "block" : "none";
+      });
+    });
+
+    renderList();
+
+    if("serviceWorker" in navigator){
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+    }
+  </script>
+</body>
+</html>
